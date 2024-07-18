@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>ffmpeg</title>
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.9.5/dist/ffmpeg.min.js"></script>
+</head>
+<body>
+  <h3>视频前端压缩</h3>
+  <video id="output-video" controls></video><br/>
+  <input type="file" id="uploader">
+  <p id="message"></p>
+</body>
+
+<script>
+	const { createFFmpeg, fetchFile } = FFmpeg;
+	const message = document.getElementById('message');
+	const ffmpeg = createFFmpeg({
+		log: true,
+		progress: ({ ratio }) => {
+			message.innerHTML = `完成率: ${(ratio * 100.0).toFixed(2)}%`;
+		},
+	});
+	const transcode = async ({ target: { files }  }) => {
+		const { name } = files[0];
+		message.innerHTML = '正在加载 ffmpeg-core.js';
+		await ffmpeg.load();
+		message.innerHTML = '开始压缩';
+		console.log('name', name)
+		// 读取文件
+		// 中文名会寻址失败
+    ffmpeg.FS('writeFile', name, await fetchFile(files[0]));
+
+		// '-b','2000k'  码率 （Bit rate） 值越小  压缩率越大  
+		// 		音频：-b:a
+		// 		视频：-b:v
+		// '-r','25' 帧速率
+		// '-s', '800x500'  帧大小
+		await ffmpeg.run('-i', name,'-b:v','2000k', '-r','25', '-s', '800x500', 'output.mp4');
+		message.innerHTML = '压缩完成';
+		const data = ffmpeg.FS('readFile', 'output.mp4');
+		const video = document.getElementById('output-video');
+		video.src = URL.createObjectURL(new Blob([data.buffer], {
+			type: 'video/mp4'
+		}));
+	}
+	document.getElementById('uploader').addEventListener('change', transcode);
+</script>
+</html>
